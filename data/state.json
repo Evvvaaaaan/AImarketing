@@ -1,0 +1,42 @@
+[
+  {
+    "id": "idea_1769530305182",
+    "idea": "아직도 종이 명함 써? 센스 있는 사람들의 디지털 명함 BUMP",
+    "status": "rendered",
+    "props": {
+      "title": "디지털 명함의 미래",
+      "subtitle": "BUMP로 센스 있게",
+      "videoPath": "assets/idea_1769530305182_bg.mp4",
+      "audioPath": "assets/idea_1769530305182_tts.mp3",
+      "themeColor": "#1DA1F2"
+    },
+    "videoPath": "/Users/evan/AImarketing/out/idea_1769530305182.mp4",
+    "finalVideoPath": "out/idea_1769530305182.mp4"
+  },
+  {
+    "id": "idea_1769532444852",
+    "idea": "번호 교환 1초 컷! 폰만 갖다 대면 끝나는 BUMP 앱 사용법",
+    "status": "rendered",
+    "props": {
+      "title": "원터치 번호 교환!",
+      "subtitle": "BUMP 앱으로 쉽게!",
+      "videoPath": "assets/idea_1769532444852_bg.mp4",
+      "audioPath": "assets/idea_1769532444852_tts.mp3",
+      "themeColor": "#E91E63"
+    },
+    "finalVideoPath": "out/idea_1769532444852.mp4"
+  },
+  {
+    "id": "idea_1769532452705",
+    "idea": "대학생 필수 앱 BUMP로 새 학기 모임에서 인싸 되는 법",
+    "status": "rendered",
+    "props": {
+      "title": "새 학기 필수앱, BUMP!",
+      "subtitle": "모임 인싸 되는 꿀팁",
+      "videoPath": "assets/idea_1769532452705_bg.mp4",
+      "audioPath": "assets/idea_1769532452705_tts.mp3",
+      "themeColor": "#6A5ACD"
+    },
+    "finalVideoPath": "out/idea_1769532452705.mp4"
+  }
+]

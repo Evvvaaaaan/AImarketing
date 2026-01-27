@@ -1,0 +1,43 @@
+{
+  "name": "aimarketing",
+  "version": "1.0.0",
+  "description": "Automated Marketing Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "remotion preview src/engine/index.tsx",
+    "auth": "tsx scripts/auth-youtube.ts",
+    "plan": "tsx scripts/planner.ts",
+    "render": "tsx scripts/renderer.ts",
+    "bot": "tsx scripts/bot_server.ts",
+    "pipeline": "npm run plan && npm run render"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.0.0",
+    "fs-extra": "^11.0.0",
+    "googleapis": "^128.0.0",
+    "node-telegram-bot-api": "^0.64.0",
+    "open": "^9.0.0",
+    "openai": "^4.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "remotion": "^4.0.0",
+    "zod": "3.22.3"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.0",
+    "@types/node": "^20.0.0",
+    "@types/node-telegram-bot-api": "^0.64.13",
+    "@types/react": "^18.0.0",
+    "ts-node": "^10.9.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "overrides": {
+    "zod": "3.22.3"
+  }
+}
