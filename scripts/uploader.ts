@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { google } from 'googleapis';
 import open from 'open';
 import { createInterface } from 'readline';
+import path from 'path';
 
 const STATE_FILE = 'data/state.json';
 const CREDENTIALS_PATH = 'client_secret.json';
@@ -29,6 +30,7 @@ async function authorize() {
 async function getNewToken(oAuth2Client: any) {
     const authUrl = oAuth2Client.generateAuthUrl({
         access_type: 'offline',
+        prompt: 'consent', // ★ Refresh Token 강제 확보
         scope: ['https://www.googleapis.com/auth/youtube.upload'],
     });
     console.log(chalk.yellow('\n🔐 인증 필요: 브라우저에서 아래 링크로 로그인하세요.'));
@@ -101,9 +103,11 @@ export async function uploadVideoToYoutube(targetId?: string) {
     let uploadedCount = 0;
     let lastUploadedId = '';
 
+    // ...
+
     for (const item of itemsToUpload) {
         console.log(chalk.yellow(`\n📦 업로드 중: ${item.props.title}`));
-        const videoPath = item.finalVideoPath;
+        const videoPath = path.resolve(process.cwd(), item.finalVideoPath); // 절대 경로 변환
 
         if (!fs.existsSync(videoPath)) {
             console.error(chalk.red(`❌ 파일 없음: ${videoPath}`));
