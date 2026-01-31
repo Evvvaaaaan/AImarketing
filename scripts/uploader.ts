@@ -77,9 +77,13 @@ export async function uploadVideoToYoutube(targetId?: string) {
             return null;
         }
     } else {
-        // 2. ID가 없으면 State에서 'rendered' 전체 찾기 (기존 로직)
-        itemsToUpload = state.filter((item: any) => item.status === 'rendered');
-        sourceFile = 'state';
+        // 2. ID가 없으면 Archive와 State에서 'rendered' 전체 찾기
+        const renderedInState = state.filter((item: any) => item.status === 'rendered');
+        const renderedInArchive = archive.filter((item: any) => item.status === 'rendered');
+
+        itemsToUpload = [...renderedInState, ...renderedInArchive];
+        // sourceFile은 저장 시 구분을 위해 필요하지만, 배치의 경우 둘 다 업데이트 해야 할 수도 있음.
+        // 여기서는 간단히 로직을 수정하여 처리
     }
 
     if (itemsToUpload.length === 0) {
@@ -117,7 +121,7 @@ export async function uploadVideoToYoutube(targetId?: string) {
                         tags: ['Shorts', 'AI'],
                     },
                     status: {
-                        privacyStatus: 'private', // 일단 비공개
+                        privacyStatus: 'public', // 공개 설정
                         selfDeclaredMadeForKids: false,
                     },
                 },
@@ -140,9 +144,13 @@ export async function uploadVideoToYoutube(targetId?: string) {
     }
 
     // 변경사항 저장
-    if (sourceFile === 'archive') {
-        await fs.writeJSON(ARCHIVE_FILE, archive, { spaces: 2 });
+    if (targetId) {
+        // 단일 모드: sourceFile에 따라 저장
+        if (sourceFile === 'archive') await fs.writeJSON(ARCHIVE_FILE, archive, { spaces: 2 });
+        else await fs.writeJSON(STATE_FILE, state, { spaces: 2 });
     } else {
+        // 배치 모드: 둘 다 저장 (어디서 왔는지 모르므로/둘 다 섞여있으므로)
+        await fs.writeJSON(ARCHIVE_FILE, archive, { spaces: 2 });
         await fs.writeJSON(STATE_FILE, state, { spaces: 2 });
     }
 
