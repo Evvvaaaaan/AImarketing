@@ -5,9 +5,12 @@ import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
 import TelegramBot from 'node-telegram-bot-api';
+// uploader 가져오기
+import { uploadVideoToYoutube } from './uploader';
 
 const ROOT_DIR = process.cwd();
 const STATE_FILE = path.join(ROOT_DIR, 'data', 'state.json');
+const ARCHIVE_FILE = path.join(ROOT_DIR, 'data', 'archive.json');
 const OUT_DIR = path.join(ROOT_DIR, 'out');
 const ENTRY_POINT = path.join(ROOT_DIR, 'src', 'engine', 'index.tsx');
 
@@ -19,25 +22,22 @@ if (!token || !chatId) {
     process.exit(1);
 }
 
+// Polling: false (충돌 방지: bot_server가 polling 담당)
 const bot = new TelegramBot(token, { polling: false });
 
 async function run() {
     console.log(chalk.blue('🏭 렌더링 로봇 가동...'));
-
     await fs.ensureDir(OUT_DIR);
 
-    if (!fs.existsSync(STATE_FILE)) { console.error('state.json 없음'); return; }
+    if (!fs.existsSync(STATE_FILE)) { console.error('state.json 없음'); process.exit(1); }
 
     const state = await fs.readJSON(STATE_FILE);
     const targets = state.filter((s: any) => s.status === 'planned');
-
-    // 타겟이 없으면 테스트용으로 첫 번째 아이템 강제 선택
-    const itemsToRender = targets.length > 0 ? targets : [];
+    const itemsToRender = targets;
 
     if (itemsToRender.length === 0) {
         console.log(chalk.yellow('💤 렌더링할 대기열(planned)이 없습니다.'));
         process.exit(0);
-        return;
     }
 
     console.log(chalk.cyan(`📊 렌더링 대상: ${itemsToRender.length}개`));
@@ -47,75 +47,81 @@ async function run() {
         webpackOverride: (config) => ({ ...config, resolve: { ...config.resolve, fallback: { fs: false, path: false } } })
     });
 
+    // 1. 렌더링 루프
+    const successfulItems: any[] = [];
+
     for (const item of itemsToRender) {
         if (!item || !item.props) continue;
-
         console.log(chalk.magenta(`\n🎬 [${item.id}] 렌더링 시작`));
 
-        // [수정] file:// 절대 경로 대신 상대 경로("assets/...")를 그대로 사용합니다.
-        // Remotion의 staticFile()은 bundle 실행 위치 기준의 public 폴더를 참조합니다.
-
-        // props 복사
         const cleanProps = {
             title: item.props.title,
             subtitle: item.props.subtitle,
-            videoPath: item.props.videoPath, // 예: "assets/idea_123_bg.mp4"
-            audioPath: item.props.audioPath, // 예: "assets/idea_123_tts.mp3"
-            themeColor: item.props.themeColor
+            imagePaths: item.props.imagePaths || [],
+            audioPath: item.props.audioPath,
+            bgmPath: item.props.bgmPath,
+            themeColor: item.props.themeColor,
+            transcript: item.props.transcript || []
         };
-
-        console.log("👉 [Renderer] Input Props:", JSON.stringify(cleanProps, null, 2));
 
         const outputFileName = `${item.id}.mp4`;
         const outputLocation = path.join(OUT_DIR, outputFileName);
 
         try {
-            // 1. Composition 선택 시에도 props 주입 (중요)
             const composition = await selectComposition({
-                serveUrl: bundleLoc,
-                id: 'MarketingClip',
-                inputProps: cleanProps,
+                serveUrl: bundleLoc, id: 'MarketingClip', inputProps: cleanProps,
             });
-
-            // 2. 렌더링
             await renderMedia({
-                composition,
-                serveUrl: bundleLoc,
-                codec: "h264",
-                outputLocation: outputLocation,
-                inputProps: cleanProps,
-                timeoutInMilliseconds: 240000,
+                composition, serveUrl: bundleLoc, codec: "h264",
+                outputLocation: outputLocation, inputProps: cleanProps, timeoutInMilliseconds: 240000,
             });
 
             console.log(chalk.green(`✅ 렌더링 완성: ${outputLocation}`));
-
             item.status = 'rendered';
             item.finalVideoPath = `out/${outputFileName}`;
 
-            console.log(chalk.blue(`📨 텔레그램 전송 중... (ID: ${item.id})`));
-
+            // 텔레그램 전송 (메시지만 보냄, 응답은 bot_server가 받음)
             await bot.sendVideo(chatId!, outputLocation, {
                 caption: `🎉 **영상이 생성되었습니다!**\n\n제목: ${cleanProps.title}\n\n유튜브에 업로드하시겠습니까?`,
                 parse_mode: 'Markdown',
                 reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: '✅ 업로드 승인', callback_data: `approve_${item.id}` },
-                            { text: '❌ 폐기', callback_data: `reject_${item.id}` }
-                        ]
-                    ]
+                    inline_keyboard: [[
+                        { text: '✅ 업로드 승인', callback_data: `approve_${item.id}` },
+                        { text: '❌ 폐기', callback_data: `reject_${item.id}` }
+                    ]]
                 }
             });
+            console.log(chalk.blue(`📨 텔레그램 승인 요청 전송됨`));
 
-            console.log(chalk.green(`📨 전송 완료`));
+            successfulItems.push(item);
 
         } catch (err: any) {
-            console.error(chalk.red(`❌ 렌더링/전송 실패 [${item.id}]: ${err.message}`));
+            console.error(chalk.red(`❌ 렌더링 실패 [${item.id}]: ${err.message}`));
         }
     }
 
-    await fs.writeJSON(STATE_FILE, state, { spaces: 2 });
-    console.log(chalk.green(`\n✨ 모든 작업 완료. state.json 업데이트됨.`));
+    // 2. 상태 저장 & 아카이빙 (Safe Update)
+    console.log(chalk.gray(`\n💾 상태 저장 및 아카이빙...`));
+
+    if (successfulItems.length > 0) {
+        let archive = [];
+        try { archive = await fs.readJSON(ARCHIVE_FILE); } catch (e) { }
+        await fs.writeJSON(ARCHIVE_FILE, [...archive, ...successfulItems], { spaces: 2 });
+        console.log(chalk.green(`📦 ${successfulItems.length}개 항목 아카이브 이동 완료`));
+
+        let currentState = [];
+        try { currentState = await fs.readJSON(STATE_FILE); } catch (e) { }
+
+        const successIds = new Set(successfulItems.map(i => i.id));
+        const remainingState = currentState.filter((item: any) => !successIds.has(item.id));
+
+        await fs.writeJSON(STATE_FILE, remainingState, { spaces: 2 });
+        console.log(chalk.cyan(`♻️ State 업데이트 완료 (남은 항목: ${remainingState.length}개)`));
+    } else {
+        console.log(chalk.yellow('⚠️ 성공한 작업이 없어 상태를 변경하지 않습니다.'));
+    }
+
+    console.log(chalk.green(`✨ 렌더링 프로세스 종료. 승인 대기는 bot_server가 담당합니다.`));
     process.exit(0);
 }
 

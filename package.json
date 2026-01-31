@@ -4,8 +4,10 @@
   "description": "Automated Marketing Bot",
   "main": "index.js",
   "scripts": {
+    "clean": "tsx scripts/clean.ts",
     "start": "remotion preview src/engine/index.tsx",
     "auth": "tsx scripts/auth-youtube.ts",
+    "upload": "tsx scripts/uploader.ts",
     "plan": "tsx scripts/planner.ts",
     "render": "tsx scripts/renderer.ts",
     "bot": "tsx scripts/bot_server.ts",
